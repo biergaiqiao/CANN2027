@@ -1,62 +1,71 @@
-"""
-Lightweight NPU monitoring inspired by Ascend msprof_analyze tooling.
-"""
+
+import csv
 import json
-import re
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union
+from statistics import mean
+from typing import Dict, Iterable, List, Mapping, Sequence, Union
 
-import subprocess
-
-
-def _parse_key_value_line(line: str) -> Tuple[str, Any]:
-    if ":" not in line:
-        return "", None
-    key, raw_value = line.split(":", 1)
-    key = key.strip().lower().replace(" ", "_")
-    value = raw_value.strip()
-    numeric_match = re.match(r"([-+]?\d+\.\d+|[-+]?\d+)", value)
-    if numeric_match:
-        try:
-            value = float(numeric_match.group(1))
-        except ValueError:
-            pass
-    return key, value
+__all__ = [
+    "load_metrics",
+    "compute_rollup",
+    "summarize_record",
+    "export_metrics_csv",
+]
 
 
-def parse_npu_smi_output(output: str) -> Dict[str, Any]:
-    metrics: Dict[str, Any] = {"raw": output}
-    parsed: List[Tuple[str, Any]] = []
-    for line in output.splitlines():
-        key, value = _parse_key_value_line(line)
-        if key:
-            parsed.append((key, value))
-    metrics["parsed"] = {key: value for key, value in parsed}
-    return metrics
+def load_metrics(path: Union[Path, str]) -> List[float]:
+    data = json.loads(Path(path).read_text())
+    if isinstance(data, list):
+        return [float(item) for item in data]
+    if "metrics" in data:
+        return [float(value) for value in data.get("metrics", [])]
+    if "summary" in data:
+        return [float(value) for value in data["summary"].values()]
+    return []
 
 
-def collect_npu_smi(destination: Union[Path, str]) -> Dict[str, Any]:
-    """Collect basic NPU stats using `npu-smi info` when available.
+def compute_rollup(metrics: Iterable[float]) -> Dict[str, float]:
+    values = list(metrics)
+    return {
+        "average": mean(values) if values else 0.0,
+        "max": max(values, default=0.0),
+        "min": min(values, default=0.0),
+        "count": float(len(values)),
+    }
 
-    If the command is missing, we synthesize a minimal record so downstream
-    analytics can still run in constrained environments.
+
+def summarize_record(path: Union[Path, str]) -> Dict[str, float]:
+    """Convenience wrapper for downstream dashboards."""
+    metrics = load_metrics(path)
+    return compute_rollup(metrics)
+
+
+def export_metrics_csv(
+    metrics: Mapping[str, Sequence[float]], destination: Union[Path, str]
+) -> Path:
+    """Write metric sequences to a CSV file for visualization and sharing.
+
+    The helper is intentionally light-weight so it can be imported directly
+    inside notebooks or MindSpore 1.7.0 monitoring scripts. It also creates the
+    parent directory for the destination file to avoid `FileNotFoundError`
+    surprises when exporting health indicators during fault-injection runs.
     """
+
+    if not metrics:
+        raise ValueError("No metrics provided for CSV export")
+
     destination = Path(destination)
-    command = ["npu-smi", "info"]
-    timestamp = datetime.utcnow().isoformat() + "Z"
-    try:
-        raw_output = subprocess.check_output(command, text=True)
-        payload = {
-            "collector": "npu-smi",
-            "timestamp": timestamp,
-            "metrics": parse_npu_smi_output(raw_output),
-        }
-    except (OSError, subprocess.CalledProcessError):
-        payload = {
-            "collector": "npu-smi",
-            "timestamp": timestamp,
-            "metrics": {"error": "npu-smi not available in this environment"},
-        }
-    destination.write_text(json.dumps(payload, indent=2))
-    return payload
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    fieldnames = ["timestamp"] + list(metrics.keys())
+    max_len = max((len(series) for series in metrics.values()), default=0)
+    with destination.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for idx in range(max_len):
+            row = {"timestamp": idx}
+            for name, series in metrics.items():
+                if idx < len(series):
+                    row[name] = series[idx]
+            writer.writerow(row)
+    return destination
