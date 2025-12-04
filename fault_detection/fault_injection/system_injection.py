@@ -31,3 +31,18 @@ def drop_packets(packet_count: int, drop_ratio: float = 0.1) -> int:
 
     dropped = int(packet_count * drop_ratio)
     return dropped
+
+from typing import Iterable, List
+from random import random
+
+
+def stuck_at_fault(value: float, stuck_value: float = 0.0) -> float:
+    """Force a value to a stuck-at condition for digital-line testing."""
+    return stuck_value if value != stuck_value else value + 1e-3
+
+
+def jitter_series(values: Iterable[float], amplitude: float = 0.02) -> List[float]:
+    """Introduce bounded jitter across a sequence for timing noise simulation."""
+    return [value + (random() - 0.5) * amplitude for value in values]
+
+
