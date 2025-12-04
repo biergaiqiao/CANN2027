@@ -98,3 +98,6 @@ Any additional colon-delimited entries emitted by `npu-smi info` are also preser
 - **Sub-health supervision**: A compact monitoring model supervises primary outputs with z-score anomaly flags, catching degradations before hard failures.
 - **Chain-of-custody visualization**: Propagation graphs connect injections to monitoring nodes and metric excursions, bridging the gap between fault injection experiments and operational dashboards.
 - **CSV-first telemetry**: Built-in CSV export plus a sample dataset reduce friction when integrating with industry-standard observability stacks compared to tools that only emit logs or proprietary formats.
+
+### 无冲突更新小贴士
+如果需要持续从 `main` 拉取更新而不想频繁处理冲突，可遵循 `docs/update_workflow.md` 的流程：保持工作区干净、优先使用 `git fetch` + `git rebase`，提交前用 `rg "<<<<<<<|>>>>>>>"` 自查是否遗留冲突标记，并用 `python -m compileall monitoring/analysis fault_detection utils` 快速做语法校验。
