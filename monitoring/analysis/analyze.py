@@ -68,4 +68,7 @@ def export_metrics_csv(
                 if idx < len(series):
                     row[name] = series[idx]
             writer.writerow(row)
+
     return destination
+
+

@@ -29,6 +29,19 @@ The current revision focuses on **sub-health supervision** with a small monitori
 1. Install Python 3.7+ (the scaffold keeps type hints compatible with 3.7 for MindSpore 1.7/CANN 5.1.0).
 2. Import utilities directly, for example:
     ```python
+
+    from monitoring.data_collection.collect_npu import (
+        collect_npu_smi,
+        collect_npu_smi_lightweight,
+    )
+
+    # Full payload with raw command output preserved
+    collect_npu_smi("data/collected_data/npu_stats.json")
+
+    # Lightweight payload for frequent sampling (numeric fields only)
+    collect_npu_smi_lightweight("data/collected_data/npu_stats_light.json")
+    ```
+3. Use the small monitoring model to supervise the main model during inference:
     from monitoring.data_collection.collect_npu import collect_npu_smi
     collect_npu_smi("data/collected_data/npu_stats.json")
     ```
@@ -68,11 +81,16 @@ The current revision focuses on **sub-health supervision** with a small monitori
 4. Extend models and analysis modules with production logic as needed.
 
 ### Chain-aware fault propagation and visualization
-=======
 
 4. Extend models and analysis modules with production logic as needed.
 
 ### Chain-aware fault propagation and visualization
+
+
+4. Extend models and analysis modules with production logic as needed.
+
+### Chain-aware fault propagation and visualization
+
 
 
 Use the propagation helpers to map injected faults to observed monitoring nodes and metrics:
@@ -122,6 +140,44 @@ The sample CSV shipped with the repo follows this schema so BI tools can ingest 
 - Memory consumption: `hbm-usage` (MiB) and `memory-usage` (MiB) totals.
 - Active process table entries when present (process id/name and memory per process).
 
+<<<<<< codex/generate-project-code-from-data-collection-tools-1g8b1f
+Any additional colon-delimited entries emitted by `npu-smi info` are also preserved in the parsed block, so downstream analytics can reason over them without modifying the collector.
+
+When storage footprint matters (e.g., high-frequency polling), call `collect_npu_smi(destination, lightweight=True)` or the convenience helper `collect_npu_smi_lightweight` to store only numeric parsed metrics without the raw command output.
+
+### 可视化与交互式探索
+- **快速 matplotlib 折线图**：
+  ```python
+  from pathlib import Path
+  from monitoring.analysis.visualize import (
+      build_numeric_timeseries,
+      load_npu_payloads,
+      plot_metric_timeseries,
+  )
+
+  payloads = load_npu_payloads(Path("data/collected_data").glob("npu_stats*.json"))
+  timestamps, series = build_numeric_timeseries(payloads)
+  fig = plot_metric_timeseries(timestamps, series, "temperature(℃)")
+  fig.savefig("data/collected_data/temperature.png", dpi=200)
+  ```
+
+- **Gradio 交互面板**（可选依赖，需要 `pip install gradio`）：
+  ```python
+  from pathlib import Path
+  from monitoring.analysis.visualize import launch_npu_dashboard
+
+  launch_npu_dashboard(Path("data/collected_data").glob("npu_stats*.json"))
+  ```
+  界面允许下拉选择任意指标（如利用率、温度、HBM 占用等）并查看时间序列折线图，便于对比亚健康趋势。
+
+### Differentiation and innovation
+- **Sub-health supervision**: A compact monitoring model supervises primary outputs with z-score anomaly flags, catching degradations before hard failures.
+- **Chain-of-custody visualization**: Propagation graphs connect injections to monitoring nodes and metric excursions, bridging the gap between fault injection experiments and operational dashboards.
+- **CSV-first telemetry**: Built-in CSV export plus a sample dataset reduce friction when integrating with industry-standard observability stacks compared to tools that only emit logs or proprietary formats.
+
+### 无冲突更新小贴士
+如果需要持续从 `main` 拉取更新而不想频繁处理冲突，可遵循 `docs/update_workflow.md` 的流程：保持工作区干净、优先使用 `git fetch` + `git rebase`，提交前用 `rg "<<<<<<<|>>>>>>>"` 自查是否遗留冲突标记，并用 `python -m compileall monitoring/analysis fault_detection utils` 快速做语法校验。
+=======
 `collect_npu_smi` stores the raw terminal output alongside a parsed map of every `key: value` line reported by `npu-smi info`. Typical fields you can expect include:
 
 * Tool metadata such as `version`.

@@ -32,6 +32,7 @@ def drop_packets(packet_count: int, drop_ratio: float = 0.1) -> int:
     dropped = int(packet_count * drop_ratio)
     return dropped
 
+
 from typing import Iterable, List
 from random import random
 
