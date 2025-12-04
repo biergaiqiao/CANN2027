@@ -19,6 +19,18 @@ def simulate_outage(
     recovery_callback()
 
 
+def induce_throttle(duration_seconds: float = 0.5, slowdown_factor: float = 2.0) -> float:
+    """Simulate compute throttling and return the expected slowdown factor."""
+
+    time.sleep(duration_seconds)
+    return slowdown_factor
+
+
+def drop_packets(packet_count: int, drop_ratio: float = 0.1) -> int:
+    """Emulate partial packet loss at a given ratio and report losses."""
+
+    dropped = int(packet_count * drop_ratio)
+    return dropped
 
 from typing import Iterable, List
 from random import random
@@ -32,4 +44,5 @@ def stuck_at_fault(value: float, stuck_value: float = 0.0) -> float:
 def jitter_series(values: Iterable[float], amplitude: float = 0.02) -> List[float]:
     """Introduce bounded jitter across a sequence for timing noise simulation."""
     return [value + (random() - 0.5) * amplitude for value in values]
+
 

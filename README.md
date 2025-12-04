@@ -19,6 +19,21 @@ The current revision focuses on **sub-health supervision** with a small monitori
 
 ### Highlights
 
+- `monitoring/data_collection/collect_npu.py` now parses `npu-smi info` key/value pairs into structured metrics, and `collect_mindspore.py` can compare two profiler dumps to surface regressions.
+- `models/main_model` derives deterministic pseudo-weights from the shipped placeholder files so that inference paths are deterministic, while `models/monitoring_model` exposes z-score based anomaly flags when supervising the main model outputs.
+- Fault injection utilities in `fault_detection/fault_injection` illustrate layer, granularity, and system level perturbations for testing and report which perturbations were applied. Additional injections now cover bit flips, multiplicative scaling, stuck-at faults, jitter, throttling, and packet loss to broaden coverage.
+- Propagation helpers in `fault_detection/fault_analysis/propagation.py` render readable chains that map injected faults to downstream monitoring nodes and impacted metrics, enabling quick chain-of-custody visualizations for incident reviews.
+- `monitoring/analysis/analyze.py::export_metrics_csv` emits time-indexed CSVs so health signals (e.g., utilization, temperature, z-score anomalies) can be consumed directly by dashboards. A sample is provided at `data/collected_data/health_metrics_sample.csv`.
+
+## Getting Started
+1. Install Python 3.7+ (the scaffold keeps type hints compatible with 3.7 for MindSpore 1.7/CANN 5.1.0).
+2. Import utilities directly, for example:
+    ```python
+    from monitoring.data_collection.collect_npu import collect_npu_smi
+    collect_npu_smi("data/collected_data/npu_stats.json")
+    ```
+3. Use the small monitoring model to supervise the main model during inference:
+
 * `monitoring/data_collection/collect_npu.py` now parses `npu-smi info` key/value pairs into structured metrics, and `collect_mindspore.py` can compare two profiler dumps to surface regressions.
 * `models/main_model` derives deterministic pseudo-weights from the shipped placeholder files so that inference paths are deterministic, while `models/monitoring_model` exposes z-score based anomaly flags when supervising the main model outputs.
 * Fault injection utilities in `fault_detection/fault_injection` illustrate layer, granularity, and system level perturbations for testing and report which perturbations were applied. Additional injections now cover bit flips, multiplicative scaling, stuck-at faults, jitter, throttling, and packet loss to broaden coverage.
@@ -53,6 +68,12 @@ The current revision focuses on **sub-health supervision** with a small monitori
 4. Extend models and analysis modules with production logic as needed.
 
 ### Chain-aware fault propagation and visualization
+=======
+
+4. Extend models and analysis modules with production logic as needed.
+
+### Chain-aware fault propagation and visualization
+
 
 Use the propagation helpers to map injected faults to observed monitoring nodes and metrics:
 
@@ -95,16 +116,17 @@ The sample CSV shipped with the repo follows this schema so BI tools can ingest 
 
 `collect_npu_smi` stores the raw terminal output alongside a parsed map of every `key: value` line reported by `npu-smi info`. Typical fields you can expect include:
 
+- Tool metadata such as `version`.
+- Per-NPU device descriptors: `npu` index, `chip` id, `bus-id`/`device_id`, and `health` state.
+- Live utilization and safety data: `aicore(%)`, `temperature(℃)`, and `power(w)`.
+- Memory consumption: `hbm-usage` (MiB) and `memory-usage` (MiB) totals.
+- Active process table entries when present (process id/name and memory per process).
+
+`collect_npu_smi` stores the raw terminal output alongside a parsed map of every `key: value` line reported by `npu-smi info`. Typical fields you can expect include:
+
 * Tool metadata such as `version`.
 * Per-NPU device descriptors: `npu` index, `chip` id, `bus-id`/`device_id`, and `health` state.
 * Live utilization and safety data: `aicore(%)`, `temperature(℃)`, and `power(w)`.
 * Memory consumption: `hbm-usage` (MiB) and `memory-usage` (MiB) totals.
 * Active process table entries when present (process id/name and memory per process).
 
-Any additional colon-delimited entries emitted by `npu-smi info` are also preserved in the parsed block, so downstream analytics can reason over them without modifying the collector.
-
-### Differentiation and innovation
-
-* **Sub-health supervision**: A compact monitoring model supervises primary outputs with z-score anomaly flags, catching degradations before hard failures.
-* **Chain-of-custody visualization**: Propagation graphs connect injections to monitoring nodes and metric excursions, bridging the gap between fault injection experiments and operational dashboards.
-* **CSV-first telemetry**: Built-in CSV export plus a sample dataset reduce friction when integrating with industry-standard observability stacks compared to tools that only emit logs or proprietary formats.
