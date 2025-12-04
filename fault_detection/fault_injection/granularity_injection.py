@@ -20,3 +20,13 @@ def apply_noise_series(
 ) -> List[float]:
     """Vectorized helper to process a batch of values with consistent noise."""
     return [apply_noise(value, granularity) for value in values]
+
+
+def stuck_at_fault(value: float, stuck_value: float = 0.0) -> float:
+    """Force a value to a stuck-at condition for digital-line testing."""
+    return stuck_value if value != stuck_value else value + 1e-3
+
+
+def jitter_series(values: Iterable[float], amplitude: float = 0.02) -> List[float]:
+    """Introduce bounded jitter across a sequence for timing noise simulation."""
+    return [value + (random() - 0.5) * amplitude for value in values]
