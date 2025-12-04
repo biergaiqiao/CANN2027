@@ -18,6 +18,7 @@ The current revision focuses on **sub-health supervision** with a small monitori
 ```
 
 ### Highlights
+
 - `monitoring/data_collection/collect_npu.py` now parses `npu-smi info` key/value pairs into structured metrics, and `collect_mindspore.py` can compare two profiler dumps to surface regressions.
 - `models/main_model` derives deterministic pseudo-weights from the shipped placeholder files so that inference paths are deterministic, while `models/monitoring_model` exposes z-score based anomaly flags when supervising the main model outputs.
 - Fault injection utilities in `fault_detection/fault_injection` illustrate layer, granularity, and system level perturbations for testing and report which perturbations were applied. Additional injections now cover bit flips, multiplicative scaling, stuck-at faults, jitter, throttling, and packet loss to broaden coverage.
@@ -28,6 +29,7 @@ The current revision focuses on **sub-health supervision** with a small monitori
 1. Install Python 3.7+ (the scaffold keeps type hints compatible with 3.7 for MindSpore 1.7/CANN 5.1.0).
 2. Import utilities directly, for example:
     ```python
+
     from monitoring.data_collection.collect_npu import (
         collect_npu_smi,
         collect_npu_smi_lightweight,
@@ -40,6 +42,30 @@ The current revision focuses on **sub-health supervision** with a small monitori
     collect_npu_smi_lightweight("data/collected_data/npu_stats_light.json")
     ```
 3. Use the small monitoring model to supervise the main model during inference:
+    from monitoring.data_collection.collect_npu import collect_npu_smi
+    collect_npu_smi("data/collected_data/npu_stats.json")
+    ```
+3. Use the small monitoring model to supervise the main model during inference:
+
+* `monitoring/data_collection/collect_npu.py` now parses `npu-smi info` key/value pairs into structured metrics, and `collect_mindspore.py` can compare two profiler dumps to surface regressions.
+* `models/main_model` derives deterministic pseudo-weights from the shipped placeholder files so that inference paths are deterministic, while `models/monitoring_model` exposes z-score based anomaly flags when supervising the main model outputs.
+* Fault injection utilities in `fault_detection/fault_injection` illustrate layer, granularity, and system level perturbations for testing and report which perturbations were applied. Additional injections now cover bit flips, multiplicative scaling, stuck-at faults, jitter, throttling, and packet loss to broaden coverage.
+* Propagation helpers in `fault_detection/fault_analysis/propagation.py` render readable chains that map injected faults to downstream monitoring nodes and impacted metrics, enabling quick chain-of-custody visualizations for incident reviews.
+* `monitoring/analysis/analyze.py::export_metrics_csv` emits time-indexed CSVs so health signals (e.g., utilization, temperature, z-score anomalies) can be consumed directly by dashboards. A sample is provided at `data/collected_data/health_metrics_sample.csv`.
+
+## Getting Started
+
+1. Install Python 3.7+ (the scaffold keeps type hints compatible with 3.7 for MindSpore 1.7/CANN 5.1.0).
+
+2. Import utilities directly, for example:
+
+   ```python
+   from monitoring.data_collection.collect_npu import collect_npu_smi
+   collect_npu_smi("data/collected_data/npu_stats.json")
+   ```
+
+3. Use the small monitoring model to supervise the main model during inference:
+
    ```python
    from models.main_model.model import MainModel
    from models.monitoring_model.model import MonitoringModel
@@ -51,9 +77,22 @@ The current revision focuses on **sub-health supervision** with a small monitori
    outputs = main.predict([1.0, 0.8, 0.6, 0.4, 0.2])
    health_scores = monitor.score_main_outputs(outputs)
    ```
+
 4. Extend models and analysis modules with production logic as needed.
 
 ### Chain-aware fault propagation and visualization
+
+4. Extend models and analysis modules with production logic as needed.
+
+### Chain-aware fault propagation and visualization
+
+
+4. Extend models and analysis modules with production logic as needed.
+
+### Chain-aware fault propagation and visualization
+
+
+
 Use the propagation helpers to map injected faults to observed monitoring nodes and metrics:
 
 ```python
@@ -92,6 +131,7 @@ export_metrics_csv(metrics, "data/collected_data/health_metrics_sample.csv")
 The sample CSV shipped with the repo follows this schema so BI tools can ingest it immediately.
 
 ### NPU metrics captured from `npu-smi info`
+
 `collect_npu_smi` stores the raw terminal output alongside a parsed map of every `key: value` line reported by `npu-smi info`. Typical fields you can expect include:
 
 - Tool metadata such as `version`.
@@ -100,6 +140,7 @@ The sample CSV shipped with the repo follows this schema so BI tools can ingest 
 - Memory consumption: `hbm-usage` (MiB) and `memory-usage` (MiB) totals.
 - Active process table entries when present (process id/name and memory per process).
 
+<<<<<< codex/generate-project-code-from-data-collection-tools-1g8b1f
 Any additional colon-delimited entries emitted by `npu-smi info` are also preserved in the parsed block, so downstream analytics can reason over them without modifying the collector.
 
 When storage footprint matters (e.g., high-frequency polling), call `collect_npu_smi(destination, lightweight=True)` or the convenience helper `collect_npu_smi_lightweight` to store only numeric parsed metrics without the raw command output.
@@ -136,3 +177,12 @@ When storage footprint matters (e.g., high-frequency polling), call `collect_npu
 
 ### 无冲突更新小贴士
 如果需要持续从 `main` 拉取更新而不想频繁处理冲突，可遵循 `docs/update_workflow.md` 的流程：保持工作区干净、优先使用 `git fetch` + `git rebase`，提交前用 `rg "<<<<<<<|>>>>>>>"` 自查是否遗留冲突标记，并用 `python -m compileall monitoring/analysis fault_detection utils` 快速做语法校验。
+=======
+`collect_npu_smi` stores the raw terminal output alongside a parsed map of every `key: value` line reported by `npu-smi info`. Typical fields you can expect include:
+
+* Tool metadata such as `version`.
+* Per-NPU device descriptors: `npu` index, `chip` id, `bus-id`/`device_id`, and `health` state.
+* Live utilization and safety data: `aicore(%)`, `temperature(℃)`, and `power(w)`.
+* Memory consumption: `hbm-usage` (MiB) and `memory-usage` (MiB) totals.
+* Active process table entries when present (process id/name and memory per process).
+
